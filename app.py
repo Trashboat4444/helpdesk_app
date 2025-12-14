@@ -128,3 +128,114 @@ def ticket_new():
         return redirect(url_for("tickets_list"))
 
     return render_template("ticket_new.html")
+
+@app.route("/tickets/<int:ticket_id>", methods=["GET", "POST"])
+@login_required
+def ticket_detail(ticket_id):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT t.*, u.name AS created_by_name, a.name AS assigned_to_name
+            FROM tickets t
+            JOIN users u ON t.created_by = u.id
+            LEFT JOIN users a ON t.assigned_to = a.id
+            WHERE t.id = %s
+        """, (ticket_id,))
+        ticket = cursor.fetchone()
+
+        cursor.execute("""
+            SELECT c.*, u.name AS user_name
+            FROM ticket_comments c
+            JOIN users u ON c.user_id = u.id
+            WHERE c.ticket_id = %s
+            ORDER BY c.created_at ASC
+        """, (ticket_id,))
+        comments = cursor.fetchall()
+
+        cursor.execute("SELECT id, name FROM users WHERE role IN ('ADMIN', 'AGENT')")
+        agents = cursor.fetchall()
+    conn.close()
+
+    if not ticket:
+        flash("Ticket not found.", "danger")
+        return redirect(url_for("tickets_list"))
+
+    return render_template("ticket_detail.html",
+        ticket=ticket,
+        comments=comments,
+        agents=agents)
+
+@app.route("/tickets/<int:ticket_id>/update", methods=["POST"])
+@login_required
+def ticket_update(ticket_id):
+    user_role = session["user_role"]
+    if user_role not in ["ADMIN", "AGENT"]:
+        flash("You are not allowed to update tickets.", "danger")
+        return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+    
+    status = request.form.get("status")
+    assigned_to = request.form.get("assigned_to") or None
+
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            UPDATE tickets
+            SET status = %s, assigned_to = %s
+            WHERE id = %s
+        """, (status, assigned_to, ticket_id))
+    conn.commit()
+    conn.close()
+
+    flash("Ticket updated.", "success")
+    return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+
+@app.route("/tickets/<int:ticket_id>/comments", methods=["POST"])
+@login_required
+def comment_add(ticket_id):
+    comment_text = request.form.get("comment")
+    user_id = session["user_id"]
+
+    if not comment_text:
+        flash("Comment cannot be empty.", "warning")
+        return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+    
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            INSERT INTO ticket_comments (ticket_id, user_id, comment)
+            VALUES (%s, %s, %s)
+        """, (ticket_id, user_id, comment_text))
+    conn.commit()
+    conn.close()
+
+    flash("Comment added.", "success")
+    return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+
+@app.route("/users")
+@login_required
+@role_required("ADMIN")
+def users_list():
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC")
+        users = cursor.fetchall()
+    conn.close()
+    return render_template("users_list.html", users=users)
+
+@app.route("/users/<int:user_id>/role", methods=["POST"])
+@login_required
+@role_required("ADMIN")
+def user_change_role(user_id):
+    new_role = request.form.get("role")
+    if new_role not in ["ADMIN", "AGENT", "USER"]:
+        flash("Invalid role.", "danger")
+        return redirect(url_for("users_list"))
+
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE users SET role = %s WHERE id = %s", (new_role, user_id))
+    conn.commit()
+    conn.close()
+
+    flash("Role updated.", "success")
+    return redirect(url_for("users_list"))
