@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h3>Users</h3>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.name }}</td>
+                <td>{{ u.email }}</td>
+                <td>{{ u.role }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('user_change_role', user_id=u.id) }}" class="d-flex">
+                        <select name="role" class="form-select form-select-sm me-2">
+                            <option value="USER" {% if u.role == "USER" %}selected{% endif %}>USER</option>
+                            <option value="AGENT" {% if u.role == "AGENT" %}selected{% endif %}>AGENT</option>
+                            <option value="ADMIN" {% if u.role == "ADMIN" %}selected{% endif %}>ADMIN</option>
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

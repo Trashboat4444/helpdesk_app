@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Tickets</h3>
+        <a href="{{ url_for('ticket_new') }}" class="btn btn-success">New Ticket</a>
+    </div>
+
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Created by</th>
+                <th>Assigned to</th>
+                <th>Created at</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for t in tickets %}
+        <tr>
+            <td><a href="{{ url_for('ticket_detail', ticket_id=t.id) }}">{{ t.id }}</a></td>
+            <td>{{ t.title }}</td>
+            <td><span class="badge bg-secondary">{{ t.status }}</span></td>
+            <td><span class="badge bg-info">{{ t.priority }}</span></td>
+            <td>{{ t.created_by_name }}</td>
+            <td>{{ t.assigned_to_name or '-' }}</td>
+            <td>{{ t.created_at }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
